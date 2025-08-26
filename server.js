@@ -4,7 +4,13 @@ import puppeteer from "puppeteer";
 import cors from "cors";
 
 const app = express();
-app.use(cors({ origin: "*" }));
+app.options("*", (req, res) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Credentials", "true");
+  res.sendStatus(200);
+});
 
 app.use(express.json());
 
@@ -88,13 +94,17 @@ async function typeReactInput(page, selector, text, log) {
 }
 
 app.get("/run-tango-sse", async (req, res) => {
-  res.writeHead(200, {
-    "Content-Type": "text/event-stream",
-    "Cache-Control": "no-cache",
-    Connection: "keep-alive",
-    "Access-Control-Allow-Origin": "*",   // thêm dòng này
-    "Access-Control-Allow-Headers": "Content-Type",
-  });
+res.writeHead(200, {
+  "Content-Type": "text/event-stream",
+  "Cache-Control": "no-cache",
+  Connection: "keep-alive",
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "Content-Type",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "X-Accel-Buffering": "no"
+});
+
+
 
   const log = (msg) => res.write(`data: ${msg}\n\n`);
 
