@@ -20,18 +20,19 @@ async function waitAndClick(page, selectorOrXpath, isXpath = false, retries = 5)
     try {
       let el;
       if (isXpath) {
-        const els = await page.$x(selectorOrXpath);
-        if (els.length > 0) el = els[0];
+        // Evaluate xpath manually
+        const handles = await page.evaluateHandle((xp) => {
+          const result = document.evaluate(xp, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+          return result.singleNodeValue;
+        }, selectorOrXpath);
+        el = handles.asElement();
       } else {
         el = await page.$(selectorOrXpath);
       }
+
       if (el) {
         await el.evaluate(e => e.scrollIntoView({behavior: "smooth", block: "center"}));
-        try {
-          await el.click({ clickCount: 1 });
-        } catch {
-          await el.evaluate(e => e.click());
-        }
+        try { await el.click({ clickCount: 1 }); } catch { await el.evaluate(e => e.click()); }
         await sleep(200);
         console.log(`DEBUG: waitAndClick resolved for ${selectorOrXpath}`);
         return el;
@@ -45,6 +46,7 @@ async function waitAndClick(page, selectorOrXpath, isXpath = false, retries = 5)
   return null;
 }
 
+
 // Type into React input helper
 async function typeReactInput(page, selector, text) {
   const el = await page.$(selector);
@@ -57,6 +59,7 @@ async function typeReactInput(page, selector, text) {
   await sleep(200);
   return true;
 }
+
 
 app.post("/run-tango", async (req, res) => {
   const { url } = req.body;
@@ -143,6 +146,7 @@ app.post("/run-tango", async (req, res) => {
       console.log(`=== DONE step: ${stepText} ===`);
       await sleep(300);
     }
+      await sleep(2000);
 
     await browser.close();
 
