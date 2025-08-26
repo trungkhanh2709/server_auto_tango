@@ -3,160 +3,153 @@ import puppeteer from "puppeteer";
 import cors from "cors";
 
 const app = express();
-app.use(
-  cors({
-    origin: "http://localhost:3000",
-    methods: ["GET", "POST", "OPTIONS"],
-    allowedHeaders: ["Content-Type"],
-  })
-);
+app.use(cors({
+  origin: "http://localhost:3000",
+  methods: ["GET","POST","OPTIONS"],
+  allowedHeaders: ["Content-Type"]
+}));
 app.use(express.json());
 
-async function waitForInputByPlaceholder(page, placeholder, timeout = 30000) {
-  const start = Date.now();
-  placeholder = placeholder.toLowerCase();
+async function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 
-  while (Date.now() - start < timeout) {
-    const inputHandle = await page.evaluateHandle((text) => {
-      const inputs = Array.from(document.querySelectorAll("input, textarea"));
-      return (
-        inputs.find(
-          (el) => el.placeholder && el.placeholder.toLowerCase().includes(text)
-        ) || null
-      );
-    }, placeholder);
-
-    const input = inputHandle.asElement();
-    if (input) return input;
-
-    await page.waitForTimeout(500);
+// Click element helper (selector or xpath)
+async function waitAndClick(page, selectorOrXpath, isXpath = false, retries = 5) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      let el;
+      if (isXpath) {
+        const els = await page.$x(selectorOrXpath);
+        if (els.length > 0) el = els[0];
+      } else {
+        el = await page.$(selectorOrXpath);
+      }
+      if (el) {
+        await el.evaluate(e => e.scrollIntoView({behavior: "smooth", block: "center"}));
+        try {
+          await el.click({ clickCount: 1 });
+        } catch {
+          await el.evaluate(e => e.click());
+        }
+        await sleep(200);
+        console.log(`DEBUG: waitAndClick resolved for ${selectorOrXpath}`);
+        return el;
+      }
+    } catch (err) {
+      console.log(`DEBUG: waitAndClick attempt ${i+1} failed for ${selectorOrXpath}: ${err.message}`);
+    }
+    await sleep(300);
   }
-
+  console.log(`DEBUG: waitAndClick FAILED for ${selectorOrXpath}`);
   return null;
+}
+
+// Type into React input helper
+async function typeReactInput(page, selector, text) {
+  const el = await page.$(selector);
+  if (!el) return false;
+  await el.focus();
+  await page.evaluate((el, val) => {
+    el.value = val;
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  }, el, text);
+  await sleep(200);
+  return true;
 }
 
 app.post("/run-tango", async (req, res) => {
   const { url } = req.body;
-  if (!url) return res.status(400).send("Missing URL");
-
   const logs = [];
   let steps = [];
-  const browser = await puppeteer.launch({
-    headless: false, // hiển thị browser
-    slowMo: 500, // chậm lại để thấy hành động
-    defaultViewport: null,
-  });
 
+  const browser = await puppeteer.launch({ headless: false, slowMo: 200, defaultViewport: null });
   const page = await browser.newPage();
   await page.goto(url, { waitUntil: "networkidle2" });
 
   try {
-    // Click link "Open" nếu có
-    try {
-      const openClicked = await page.evaluate(() => {
-        const anchors = Array.from(document.querySelectorAll("a"));
-        const openLink = anchors.find(
-          (a) => a.innerText.trim().toLowerCase() === "open"
-        );
-        if (openLink) {
-          openLink.click();
-          return true;
-        }
-        return false;
-      });
-      logs.push(
-        openClicked ? "Clicked on Open link ✅" : "No Open link found ❌"
-      );
-      await page.waitForTimeout(1000);
-    } catch (err) {
-      logs.push("ERROR clicking Open link: " + err.message);
-    }
-
-    // Lấy step từ workflow
-    steps = await page.evaluate(() => {
-      const stepElements = document.querySelectorAll(
-        '[data-testid="workflowEdit.navigation.stepTitle"]'
-      );
-      return Array.from(stepElements).map((el) => el.innerText.trim());
-    });
+    await page.waitForSelector('[data-testid="workflowEdit.navigation.stepTitle"]', { timeout: 30000 });
+    steps = await page.evaluate(() => 
+      Array.from(document.querySelectorAll('[data-testid="workflowEdit.navigation.stepTitle"]')).map(e => e.innerText.trim())
+    );
     logs.push("Steps detected: " + steps.join(", "));
+    console.log("Steps:", steps);
 
-    // Thực hiện từng step
+    const [newPage] = await Promise.all([
+      new Promise(resolve => { browser.once("targetcreated", async target => resolve(await target.page())); }),
+      page.evaluate(() => {
+        const openLink = Array.from(document.querySelectorAll("a"))
+          .find(a => a.innerText.trim().toLowerCase() === "open");
+        if(openLink) openLink.click();
+      })
+    ]);
+
+    await newPage.bringToFront();
+    await newPage.waitForSelector("body");
+    console.log("Switched to target page:", await newPage.url());
+
+    let lastClickedSelector = null;
+
     for (const step of steps) {
-      const stepText = step.replace(/^\d+\.\s*/, "").trim(); // loại bỏ số thứ tự
-
-      console.log("Processing step:", stepText);
-      logs.push("Processing step: " + stepText);
+      const stepText = step.replace(/^\d+\.\s*/, "").trim();
+      logs.push(`=== START step: ${stepText} ===`);
+      console.log(`=== START step: ${stepText} ===`);
 
       if (stepText.startsWith("Click on")) {
-        let text = stepText
-          .replace(/^Click on\s*/, "")
-          .replace(/\.\.\.$/, "")
-          .trim();
-
-        console.log("Looking for element with placeholder/text:", text);
-        logs.push("Looking for element with placeholder/text: " + text);
-
-      const inputSelector = 'input[placeholder*="Type here"], textarea[placeholder*="Type here"]';
-
-// đợi input xuất hiện và visible
-await page.waitForSelector(inputSelector, { timeout: 30000, visible: true });
-
-const input = await page.$(inputSelector);
-
-if (input) {
-  // scroll vào view
-  await page.evaluate(el => el.scrollIntoView({ block: "center", behavior: "smooth" }), input);
-
-  // click wrapper (Ant Design)
-  const wrapper = await page.evaluateHandle(el => el.closest('.ant-input') || el, input);
-  await wrapper.asElement().click({ clickCount: 1 });
-
-  // focus input
-  await input.focus();
-
-  console.log(`Focused on input with placeholder: Type here ✅`);
-  logs.push(`Focused on input with placeholder: Type here ✅`);
-}
-
- else {
-          // fallback tìm button
-          const buttonHandle = await page.$x(
-            `//button[contains(translate(text(), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), '${text.toLowerCase()}')]`
-          );
-          if (buttonHandle.length > 0) {
-            await buttonHandle[0].click();
-            console.log(`Clicked button with text: ${text} ✅`);
-            logs.push(`Clicked button with text: ${text} ✅`);
+        const text = stepText.replace(/^Click on\s*/, "").trim();
+        const inputSelector = `input[placeholder*="${text}"], textarea[placeholder*="${text}"]`;
+        const clickedInput = await waitAndClick(newPage, inputSelector);
+        if (clickedInput) {
+          lastClickedSelector = inputSelector;
+          logs.push(`Clicked input: ${text}`);
+          console.log(`Clicked input: ${text}`);
+        } else {
+          const btnXpath = `//button[contains(translate(., 'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'), '${text.toLowerCase()}')]`;
+          const clickedBtn = await waitAndClick(newPage, btnXpath, true);
+          if (clickedBtn) {
+            logs.push(`Clicked button: ${text}`);
+            console.log(`Clicked button: ${text}`);
           } else {
-            const errorMsg = `ERROR: Element not found -> ${text} ❌`;
-            console.log(errorMsg);
-            logs.push(errorMsg);
+            logs.push(`ERROR: Element not found -> ${text}`);
+            console.log(`ERROR: Element not found -> ${text}`);
           }
         }
-
-        await page.waitForTimeout(500);
       }
 
-      if (stepText.startsWith("Type")) {
-        // dùng stepText, không phải step
+      else if (stepText.startsWith("Type")) {
         const match = stepText.match(/Type "(.*)"/);
         if (match) {
-          const inputText = match[1];
-          console.log("Typing text:", inputText);
-          logs.push("Typing text: " + inputText);
-          await page.keyboard.type(inputText, { delay: 100 });
-          console.log(`Typed: ${inputText} ✅`);
-          logs.push(`Typed: ${inputText} ✅`);
-          await page.waitForTimeout(500);
+          const textToType = match[1];
+          let typed = false;
+
+          if (lastClickedSelector) typed = await typeReactInput(newPage, lastClickedSelector, textToType);
+
+          if (!typed) {
+            typed = await newPage.evaluate((val) => {
+              const el = document.activeElement;
+              if (!el) return false;
+              el.value = val;
+              el.dispatchEvent(new Event('input', { bubbles: true }));
+              return true;
+            }, textToType);
+          }
+
+          if (typed) logs.push(`Typed: "${textToType}"`);
+          else logs.push(`ERROR: Cannot type "${textToType}"`);
         }
       }
+
+      logs.push(`=== DONE step: ${stepText} ===`);
+      console.log(`=== DONE step: ${stepText} ===`);
+      await sleep(300);
     }
+
+    await browser.close();
+
   } catch (err) {
     logs.push("ERROR main: " + err.message);
+    console.error(err);
   }
-
-  // Không đóng browser luôn, để bạn nhìn quá trình
 
   res.json({ steps, logs });
 });
