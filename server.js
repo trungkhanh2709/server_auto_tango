@@ -51,14 +51,20 @@ async function waitAndClick(page, selectorOrXpath, isXpath = false, retries = 5)
 async function typeReactInput(page, selector, text) {
   const el = await page.$(selector);
   if (!el) return false;
+
   await el.focus();
+
+  // Set giá trị React-controlled
   await page.evaluate((el, val) => {
-    el.value = val;
-    el.dispatchEvent(new Event('input', { bubbles: true }));
+    const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
+    nativeInputValueSetter.call(el, val);
+    el.dispatchEvent(new Event("input", { bubbles: true }));
   }, el, text);
+
   await sleep(200);
   return true;
 }
+
 
 
 app.post("/run-tango", async (req, res) => {
