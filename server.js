@@ -4,14 +4,8 @@ import puppeteer from "puppeteer";
 import cors from "cors";
 
 const app = express();
-app.use(cors({
-  origin: [
-    "http://localhost:3000",
-    "https://elaborate-hummingbird-6cb3f7.netlify.app"
-  ],
-  methods: ["GET", "POST", "OPTIONS"],
-  allowedHeaders: ["Content-Type"],
-}));
+app.use(cors({ origin: "*" }));
+
 
 app.use(express.json());
 
