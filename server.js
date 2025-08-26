@@ -92,6 +92,8 @@ app.get("/run-tango-sse", async (req, res) => {
     "Content-Type": "text/event-stream",
     "Cache-Control": "no-cache",
     Connection: "keep-alive",
+    "Access-Control-Allow-Origin": "*",   // thêm dòng này
+    "Access-Control-Allow-Headers": "Content-Type",
   });
 
   const log = (msg) => res.write(`data: ${msg}\n\n`);
