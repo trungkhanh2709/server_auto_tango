@@ -4,6 +4,7 @@ import puppeteer from "puppeteer";
 import cors from "cors";
 
 const app = express();
+// Bắt tất cả OPTIONS request
 app.options("*", (req, res) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
@@ -11,6 +12,7 @@ app.options("*", (req, res) => {
   res.setHeader("Access-Control-Allow-Credentials", "true");
   res.sendStatus(200);
 });
+
 
 app.use(express.json());
 
