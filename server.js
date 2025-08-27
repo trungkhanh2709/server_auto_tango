@@ -1,6 +1,7 @@
 // server.js
 import express from "express";
-import puppeteer from "puppeteer";
+import puppeteer from "puppeteer-core";
+import chromium from "@sparticuz/chromium";
 import cors from "cors";
 
 const app = express();
@@ -116,11 +117,11 @@ res.writeHead(200, {
     return;
   }
 
-  
 const browser = await puppeteer.launch({
-  headless: true,
-  args: ["--no-sandbox", "--disable-setuid-sandbox"],
-  defaultViewport: null
+  args: chromium.args,
+  defaultViewport: chromium.defaultViewport,
+  executablePath: await chromium.executablePath(),
+  headless: chromium.headless
 });
   const page = await browser.newPage();
 
