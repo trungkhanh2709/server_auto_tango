@@ -88,17 +88,18 @@ async function typeReactInput(page, selector, text, log) {
 }
 
 app.get("/run-tango-sse", async (req, res) => {
-   res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
   res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
- res.writeHead(200, {
-    "Content-Type": "text/event-stream",
-    "Cache-Control": "no-cache",
-    Connection: "keep-alive",
-  });
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("Content-Type", "text/event-stream");
+
+  // giữ connection
+  res.flushHeaders?.();
+
 
   const log = (msg) => res.write(`data: ${msg}\n\n`);
-   if (res.flush) res.flush();
 
   const url = req.query.url;
   if (!url) {
@@ -108,10 +109,19 @@ app.get("/run-tango-sse", async (req, res) => {
   }
 
   const browser = await puppeteer.launch({
-    headless: false,
-    slowMo: 200,
+    headless: true, // Render không support GUI
+    args: [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-dev-shm-usage",
+      "--disable-gpu",
+      "--no-zygote",
+      "--single-process",
+    ],
     defaultViewport: null,
   });
+
+
   const page = await browser.newPage();
 
   try {
