@@ -116,12 +116,12 @@ res.writeHead(200, {
     return;
   }
 
-  const browser = await puppeteer.launch({
-    headless: true,
-    slowMo: 200,
-    defaultViewport: null,
-      args: ["--no-sandbox", "--disable-setuid-sandbox"]
-  });
+  
+const browser = await puppeteer.launch({
+  headless: true,
+  args: ["--no-sandbox", "--disable-setuid-sandbox"],
+  defaultViewport: null
+});
   const page = await browser.newPage();
 
   try {
