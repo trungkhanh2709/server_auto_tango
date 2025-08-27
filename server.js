@@ -4,7 +4,7 @@ import puppeteer from "puppeteer";
 import cors from "cors";
 
 const app = express();
-app.use(cors({ origin: "https://cerulean-swan-bdb85e.netlify.app/" }));
+app.use(cors({ origin: "*" }));
 
 app.use(express.json());
 
@@ -95,6 +95,7 @@ app.get("/run-tango-sse", async (req, res) => {
   });
 
   const log = (msg) => res.write(`data: ${msg}\n\n`);
+   if (res.flush) res.flush();
 
   const url = req.query.url;
   if (!url) {
