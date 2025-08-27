@@ -1,18 +1,10 @@
 // server.js
 import express from "express";
-import puppeteer from "puppeteer-core";
-import chromium from "@sparticuz/chromium";
+import puppeteer from "puppeteer";
 import cors from "cors";
 
 const app = express();
-// Bắt tất cả OPTIONS request
-app.use(cors({
-  origin: "*",
-  methods: ["GET", "POST", "OPTIONS"],
-  allowedHeaders: ["Content-Type"],
-  credentials: true
-}));
-
+app.use(cors({ origin: "*" }));
 
 app.use(express.json());
 
@@ -96,17 +88,11 @@ async function typeReactInput(page, selector, text, log) {
 }
 
 app.get("/run-tango-sse", async (req, res) => {
-res.writeHead(200, {
-  "Content-Type": "text/event-stream",
-  "Cache-Control": "no-cache",
-  Connection: "keep-alive",
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "Content-Type",
-  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-  "X-Accel-Buffering": "no"
-});
-
-
+  res.writeHead(200, {
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache",
+    Connection: "keep-alive",
+  });
 
   const log = (msg) => res.write(`data: ${msg}\n\n`);
 
@@ -116,13 +102,12 @@ res.writeHead(200, {
     res.end();
     return;
   }
-const executablePath = await chromium.executablePath();
-const browser = await puppeteer.launch({
-  executablePath,
-  args: [...chromium.args, "--disable-dev-shm-usage"],
-  headless: chromium.headless
-});
 
+  const browser = await puppeteer.launch({
+    headless: false,
+    slowMo: 200,
+    defaultViewport: null,
+  });
   const page = await browser.newPage();
 
   try {

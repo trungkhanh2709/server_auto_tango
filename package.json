@@ -11,7 +11,6 @@
   "license": "ISC",
   "type": "module",
   "dependencies": {
-    "@sparticuz/chromium": "^138.0.2",
     "cors": "^2.8.5",
     "express": "^5.1.0",
     "puppeteer": "^24.17.0",
