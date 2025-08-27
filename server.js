@@ -116,13 +116,13 @@ res.writeHead(200, {
     res.end();
     return;
   }
-
+const executablePath = await chromium.executablePath();
 const browser = await puppeteer.launch({
-  args: chromium.args,
-  defaultViewport: chromium.defaultViewport,
-  executablePath: await chromium.executablePath(),
+  executablePath,
+  args: [...chromium.args, "--disable-dev-shm-usage"],
   headless: chromium.headless
 });
+
   const page = await browser.newPage();
 
   try {
