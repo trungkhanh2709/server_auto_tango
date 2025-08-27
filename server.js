@@ -88,7 +88,10 @@ async function typeReactInput(page, selector, text, log) {
 }
 
 app.get("/run-tango-sse", async (req, res) => {
-  res.writeHead(200, {
+   res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+ res.writeHead(200, {
     "Content-Type": "text/event-stream",
     "Cache-Control": "no-cache",
     Connection: "keep-alive",
