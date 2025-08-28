@@ -114,18 +114,12 @@ app.get("/run-tango-sse", async (req, res) => {
     res.end();
     return;
   }
-const executablePath = await chromium.executablePath();
 
-const browser = await puppeteer.launch({
-  args: [
-    ...chromium.args,
-    "--no-sandbox",
-    "--disable-setuid-sandbox",
-    "--disable-dev-shm-usage",
-  ],
-  defaultViewport: chromium.defaultViewport,
-  executablePath: executablePath || "/usr/bin/chromium-browser",
+  const browser = await puppeteer.launch({
   headless: chromium.headless,
+  executablePath: await chromium.executablePath(),
+  args: chromium.args,
+  defaultViewport: chromium.defaultViewport,
 });
 
 
