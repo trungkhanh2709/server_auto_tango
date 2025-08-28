@@ -251,11 +251,12 @@ const browser = await puppeteer.connect({
     await browser.close();
     log("=== ALL STEPS DONE ===");
   } catch (err) {
-    log("ERROR main: " + err.message);
-    await browser.close();
-  } finally {
-    res.end();
-  }
+  log("ERROR main: " + (err.stack || err.message || JSON.stringify(err)));
+  await browser.close();
+} finally {
+  res.end();
+}
+
 });
 
 const PORT = process.env.PORT || 4000;
