@@ -114,7 +114,7 @@ app.get("/run-tango-sse", async (req, res) => {
     log("Opening page...");
     await page.goto(url, { waitUntil: "networkidle2" });
     log("Page loaded");
-
+    
     await page.waitForSelector(
       '[data-testid="workflowEdit.navigation.stepTitle"]',
       { timeout: 30000 }
@@ -126,25 +126,24 @@ app.get("/run-tango-sse", async (req, res) => {
         )
       ).map((e) => e.innerText.trim())
     );
-    log("Steps: " + steps.join(", "));
-
+    
     const [newPage] = await Promise.all([
       new Promise((resolve) =>
         browser.once("targetcreated", async (target) =>
           resolve(await target.page())
-        )
-      ),
-      page.evaluate(() => {
-        const openLink = Array.from(document.querySelectorAll("a")).find(
-          (a) => a.innerText.trim().toLowerCase() === "open"
-        );
-        if (openLink) openLink.click();
-      }),
-    ]);
+    )
+  ),
+  page.evaluate(() => {
+    const openLink = Array.from(document.querySelectorAll("a")).find(
+      (a) => a.innerText.trim().toLowerCase() === "open"
+    );
+    if (openLink) openLink.click();
+  }),
+]);
+log("Switched to target page: " + (await newPage.url()));
 
     await newPage.bringToFront();
     await newPage.waitForSelector("body");
-    log("Switched to target page: " + (await newPage.url()));
 
     let lastClickedSelector = null;
 
@@ -202,6 +201,12 @@ app.get("/run-tango-sse", async (req, res) => {
         }
       }
 
+        try {
+    const screenshot = await newPage.screenshot({ encoding: "base64", fullPage: true });
+    log(`SCREENSHOT: ${screenshot}`); // gửi qua SSE
+  } catch (err) {
+    log(`ERROR screenshot: ${err.message}`);
+  }
       log(`=== DONE step: ${stepText} ===`);
       await sleep(300);
     }
