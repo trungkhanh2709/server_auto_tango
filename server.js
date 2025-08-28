@@ -116,7 +116,7 @@ app.get("/run-tango-sse", async (req, res) => {
   }
 
   const browser = await puppeteer.launch({
-  headless: true,
+  headless: chromium.headless,
   executablePath: await chromium.executablePath(),
   args: chromium.args,
   defaultViewport: chromium.defaultViewport,
