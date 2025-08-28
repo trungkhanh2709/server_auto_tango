@@ -1,6 +1,7 @@
 // server.js
 import express from "express";
-import puppeteer from "puppeteer";
+import puppeteer from "puppeteer-core";
+import chromium from "@sparticuz/chromium";
 import cors from "cors";
 
 const app = express();
@@ -115,17 +116,11 @@ app.get("/run-tango-sse", async (req, res) => {
   }
 
   const browser = await puppeteer.launch({
-    headless: true,
-    args: [
-     "--no-sandbox",
-    "--disable-setuid-sandbox",
-    "--disable-dev-shm-usage",
-    "--disable-gpu",
-    "--no-zygote",
-    "--single-process",
-    ],
-    defaultViewport: null,
-  });
+  headless: true,
+  executablePath: await chromium.executablePath(),
+  args: chromium.args,
+  defaultViewport: chromium.defaultViewport,
+});
 
 
   const page = await browser.newPage();
