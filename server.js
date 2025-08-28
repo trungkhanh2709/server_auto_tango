@@ -9,6 +9,10 @@ app.use(cors({ origin: "*" }));
 
 app.use(express.json());
 
+
+const BROWSERLESS_URL = `wss://chrome.browserless.io?token=${process.env.BROWSERLESS_API_KEY}`;
+
+
 async function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -67,26 +71,27 @@ async function waitAndClick(
 }
 
 async function launchBrowser() {
-  const executablePath = (await chromium.executablePath()) || "/usr/bin/chromium-browser";
-  for (let i = 0; i < 3; i++) {
-    try {
-      return await puppeteer.launch({
-        args: [
-          ...chromium.args,
-          "--no-sandbox",
-          "--disable-setuid-sandbox",
-          "--disable-dev-shm-usage",
-        ],
-        defaultViewport: chromium.defaultViewport,
-        executablePath,
-        headless: chromium.headless,
-      });
-    } catch (err) {
-      console.error(`Launch attempt ${i + 1} failed:`, err.message);
-      await sleep(500);
-    }
-  }
-  throw new Error("Chromium launch failed after 3 attempts");
+  // const executablePath = (await chromium.executablePath()) || "/usr/bin/chromium-browser";
+  // for (let i = 0; i < 3; i++) {
+  //   try {
+  //     return await puppeteer.launch({
+  //       args: [
+  //         ...chromium.args,
+  //         "--no-sandbox",
+  //         "--disable-setuid-sandbox",
+  //         "--disable-dev-shm-usage",
+  //       ],
+  //       defaultViewport: chromium.defaultViewport,
+  //       executablePath,
+  //       headless: chromium.headless,
+  //     });
+  //   } catch (err) {
+  //     console.error(`Launch attempt ${i + 1} failed:`, err.message);
+  //     await sleep(500);
+  //   }
+  // }
+  // throw new Error("Chromium launch failed after 3 attempts");
+  
 }
 
 
@@ -139,8 +144,9 @@ app.get("/run-tango-sse", async (req, res) => {
     return;
   }
 
-const browser = await launchBrowser();
-
+const browser = await puppeteer.connect({
+  browserWSEndpoint: BROWSERLESS_URL,
+});
 
 
   const page = await browser.newPage();
