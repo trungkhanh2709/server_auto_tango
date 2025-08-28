@@ -66,29 +66,6 @@ async function waitAndClick(
   return null;
 }
 
-async function launchBrowser() {
-  const executablePath = await chromium.executablePath();
-  for (let i = 0; i < 3; i++) {
-    try {
-      return await puppeteer.launch({
-        args: [
-          ...chromium.args,
-          "--no-sandbox",
-          "--disable-setuid-sandbox",
-          "--disable-dev-shm-usage",
-        ],
-        defaultViewport: chromium.defaultViewport,
-        executablePath,
-        headless: chromium.headless,
-      });
-    } catch (err) {
-      console.error(`Launch attempt ${i + 1} failed:`, err.message);
-      await sleep(500);
-    }
-  }
-  throw new Error("Chromium launch failed after 3 attempts");
-}
-
 // Type into React input helper
 async function typeReactInput(page, selector, text, log) {
   const el = await page.$(selector);
@@ -137,25 +114,27 @@ app.get("/run-tango-sse", async (req, res) => {
     res.end();
     return;
   }
+const executablePath = await chromium.executablePath();
 
-  const browser = await puppeteer.launch({
-  headless: chromium.headless,
-  executablePath: await chromium.executablePath(),
- args: [
+const browser = await puppeteer.launch({
+  args: [
     ...chromium.args,
     "--no-sandbox",
     "--disable-setuid-sandbox",
     "--disable-dev-shm-usage",
   ],
   defaultViewport: chromium.defaultViewport,
+  executablePath: executablePath || "/usr/bin/chromium-browser",
+  headless: chromium.headless,
 });
 
 
   const page = await browser.newPage();
 
   try {
-    log("Opening page...");
-    await page.goto(url, { waitUntil: "networkidle2" });
+log("Opening page: " + url);
+    
+await page.goto(url, { waitUntil: "networkidle2", timeout: 0 });
     log("Page loaded");
 
     await page.waitForSelector(
