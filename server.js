@@ -122,10 +122,12 @@ const browser = await puppeteer.launch({
     "--no-sandbox",
     "--disable-setuid-sandbox",
     "--disable-dev-shm-usage",
+    "--disable-gpu",
+    "--single-process"
   ],
   defaultViewport: chromium.defaultViewport,
-  executablePath: executablePath || "/usr/bin/chromium-browser",
-  headless: chromium.headless,
+  executablePath: await chromium.executablePath(), // lấy đúng path
+  headless: true, // ép headless true
 });
 
 
