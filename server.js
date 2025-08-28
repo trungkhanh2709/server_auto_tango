@@ -115,7 +115,8 @@ app.get("/run-tango-sse", async (req, res) => {
   }
 
   const browser = await puppeteer.launch({
-    headless: true, // Render không support GUI
+    headless: true,
+      executablePath: await puppeteer.executablePath(),
     args: [
      "--no-sandbox",
     "--disable-setuid-sandbox",
