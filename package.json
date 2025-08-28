@@ -4,20 +4,15 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node server.js"
-  },
-  "engines": {
-    "node": "20.x"
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "module",
   "dependencies": {
-    "@sparticuz/chromium": "^127.0.0",
     "cors": "^2.8.5",
     "express": "^5.1.0",
+    "puppeteer": "^24.17.0",
     "puppeteer-core": "^24.17.0",
     "puppeteer-stream": "^3.0.20"
   }

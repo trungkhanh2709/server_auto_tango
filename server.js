@@ -1,7 +1,6 @@
 // server.js
 import express from "express";
-import puppeteer from "puppeteer-core";
-import chromium from "@sparticuz/chromium";
+import puppeteer from "puppeteer";
 import cors from "cors";
 
 const app = express();
@@ -87,24 +86,13 @@ async function typeReactInput(page, selector, text, log) {
   log(`Typed: "${text}"`);
   return true;
 }
-app.options("/run-tango-sse", (req, res) => {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-  res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
-  res.sendStatus(200);
-});
-// SSE endpoint
+
 app.get("/run-tango-sse", async (req, res) => {
-    res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-  res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
-  res.setHeader("Cache-Control", "no-cache");
-  res.setHeader("Connection", "keep-alive");
-  res.setHeader("Content-Type", "text/event-stream");
-
-  // giữ connection
-  res.flushHeaders?.();
-
+  res.writeHead(200, {
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache",
+    Connection: "keep-alive",
+  });
 
   const log = (msg) => res.write(`data: ${msg}\n\n`);
 
@@ -114,29 +102,17 @@ app.get("/run-tango-sse", async (req, res) => {
     res.end();
     return;
   }
-const executablePath = await chromium.executablePath();
 
-const browser = await puppeteer.launch({
-  args: [
-    ...chromium.args,
-    "--no-sandbox",
-    "--disable-setuid-sandbox",
-    "--disable-dev-shm-usage",
-    "--disable-gpu",
-    "--single-process"
-  ],
-  defaultViewport: chromium.defaultViewport,
-  executablePath: await chromium.executablePath(), // lấy đúng path
-  headless: true, // ép headless true
-});
-
-
+  const browser = await puppeteer.launch({
+    headless: false,
+    slowMo: 200,
+    defaultViewport: null,
+  });
   const page = await browser.newPage();
 
   try {
-log("Opening page: " + url);
-    
-await page.goto(url, { waitUntil: "networkidle2", timeout: 0 });
+    log("Opening page...");
+    await page.goto(url, { waitUntil: "networkidle2" });
     log("Page loaded");
 
     await page.waitForSelector(
