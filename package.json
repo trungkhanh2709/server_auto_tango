@@ -1,27 +1,19 @@
 {
   "name": "server-automatic-browser",
   "version": "1.0.0",
-
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-     "start": "node server.js"
-   
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "engines": {
-  "node": "20.x"
-},
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "module",
   "dependencies": {
     "cors": "^2.8.5",
     "express": "^5.1.0",
-    "puppeteer-stream": "^3.0.20",
-    "puppeteer-core": "^24.2.0",
-
-    "@sparticuz/chromium": "^127.0.0"
+    "puppeteer": "^24.17.0",
+    "puppeteer-core": "^24.17.0",
+    "puppeteer-stream": "^3.0.20"
   }
 }
