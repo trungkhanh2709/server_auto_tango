@@ -67,7 +67,7 @@ async function waitAndClick(
 }
 
 async function launchBrowser() {
-  const executablePath = await chromium.executablePath();
+  const executablePath = (await chromium.executablePath()) || "/usr/bin/chromium-browser";
   for (let i = 0; i < 3; i++) {
     try {
       return await puppeteer.launch({
@@ -88,6 +88,7 @@ async function launchBrowser() {
   }
   throw new Error("Chromium launch failed after 3 attempts");
 }
+
 
 // Type into React input helper
 async function typeReactInput(page, selector, text, log) {
