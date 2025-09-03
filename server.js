@@ -2,11 +2,17 @@
 import express from "express";
 import puppeteer from "puppeteer";
 import cors from "cors";
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import dotenv from "dotenv";
 
+dotenv.config();
 const app = express();
 app.use(cors({ origin: "*" }));
 
 app.use(express.json());
+
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
 async function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -104,7 +110,7 @@ app.get("/run-tango-sse", async (req, res) => {
   }
 
   const browser = await puppeteer.launch({
-    headless: false,
+    headless: true,
     slowMo: 200,
     defaultViewport: null,
   });
@@ -114,7 +120,7 @@ app.get("/run-tango-sse", async (req, res) => {
     log("Opening page...");
     await page.goto(url, { waitUntil: "networkidle2" });
     log("Page loaded");
-    
+
     await page.waitForSelector(
       '[data-testid="workflowEdit.navigation.stepTitle"]',
       { timeout: 30000 }
@@ -126,21 +132,21 @@ app.get("/run-tango-sse", async (req, res) => {
         )
       ).map((e) => e.innerText.trim())
     );
-    
+
     const [newPage] = await Promise.all([
       new Promise((resolve) =>
         browser.once("targetcreated", async (target) =>
           resolve(await target.page())
-    )
-  ),
-  page.evaluate(() => {
-    const openLink = Array.from(document.querySelectorAll("a")).find(
-      (a) => a.innerText.trim().toLowerCase() === "open"
-    );
-    if (openLink) openLink.click();
-  }),
-]);
-log("Switched to target page: " + (await newPage.url()));
+        )
+      ),
+      page.evaluate(() => {
+        const openLink = Array.from(document.querySelectorAll("a")).find(
+          (a) => a.innerText.trim().toLowerCase() === "open"
+        );
+        if (openLink) openLink.click();
+      }),
+    ]);
+    log("Switched to target page: " + (await newPage.url()));
 
     await newPage.bringToFront();
     await newPage.waitForSelector("body");
@@ -201,12 +207,47 @@ log("Switched to target page: " + (await newPage.url()));
         }
       }
 
+      // gửi screenshot
+      try {
+        const screenshot = await newPage.screenshot({
+          encoding: "base64",
+          fullPage: true,
+        });
+        log(`SCREENSHOT: ${screenshot}`);
+      } catch (err) {
+        log(`ERROR screenshot: ${err.message}`);
+      }
+
+      // **Gửi DOM toàn trang sau mỗi step**
+      try {
+        // **Gửi DOM rút gọn sau mỗi step**
         try {
-    const screenshot = await newPage.screenshot({ encoding: "base64", fullPage: true });
-    log(`SCREENSHOT: ${screenshot}`); // gửi qua SSE
-  } catch (err) {
-    log(`ERROR screenshot: ${err.message}`);
-  }
+          const domHtml = await newPage.evaluate(() => {
+            // clone body để thao tác mà không ảnh hưởng trang thật
+            const clone = document.body.cloneNode(true);
+
+            // Xóa tất cả script và style
+            clone
+              .querySelectorAll("script, style")
+              .forEach((el) => el.remove());
+
+            // Xóa các thuộc tính inline style
+            clone
+              .querySelectorAll("*")
+              .forEach((el) => el.removeAttribute("style"));
+
+            return clone.outerHTML;
+          });
+          log(`DOM:${JSON.stringify({ step: stepText, html: domHtml })}`);
+        } catch (err) {
+          log(`ERROR DOM: ${err.message}`);
+        }
+
+        log(`DOM:${JSON.stringify({ step: stepText, html: domHtml })}`);
+      } catch (err) {
+        log(`ERROR DOM: ${err.message}`);
+      }
+
       log(`=== DONE step: ${stepText} ===`);
       await sleep(300);
     }
@@ -221,6 +262,34 @@ log("Switched to target page: " + (await newPage.url()));
     res.end();
   }
 });
+app.post("/analyze-dom", async (req, res) => {
+  const { html, userPrompt } = req.body;
 
+  if (!html || !userPrompt) {
+    return res.status(400).json({ error: "Missing html or userPrompt" });
+  }
+
+  try {
+    const prompt = `You are an AI specialized in analyzing HTML DOM.  
+Here is the DOM of a page:  
+${html}  
+
+Task: ${userPrompt}  
+
+Response requirements:  
+- The answer must be wrapped in valid HTML tags.  
+- Only use data that actually exists in the provided DOM (no guessing or adding external information).  
+- If the required information cannot be found, return: <p>No information found</p>.  
+
+    `;
+
+    const result = await model.generateContent(prompt);
+    const responseText = result.response.text();
+
+    res.json({ analysis: responseText });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
